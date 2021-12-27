@@ -5,11 +5,12 @@ import com.comcast.ip4s._
 import fs2.Stream
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.middleware.Logger
-
 import prices.config.Config
-import prices.routes.InstanceKindRoutes
-import prices.services.SmartcloudInstanceKindService
+import prices.routes.{InstanceKindRoutes, InstancePriceRoutes}
+import prices.services.{SmartcloudInstanceKindService, SmartcloudPriceService}
+import cats.syntax.semigroupk._
 
+// TODO add macwire
 object Server {
 
   def serve(config: Config): Stream[IO, ExitCode] = {
@@ -21,8 +22,17 @@ object Server {
       )
     )
 
+    // todo rename from price to kind service
+    // todo share config
+    val instancePriceService = SmartcloudPriceService.make[IO](
+      SmartcloudPriceService.Config(
+        config.smartcloud.baseUri,
+        config.smartcloud.token
+      )
+    )
+
     val httpApp = (
-      InstanceKindRoutes[IO](instanceKindService).routes
+      InstanceKindRoutes[IO](instanceKindService).routes <+> InstancePriceRoutes[IO](instancePriceService).routes
     ).orNotFound
 
     Stream
