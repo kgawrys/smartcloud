@@ -6,8 +6,8 @@ import fs2.Stream
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.middleware.Logger
 import prices.config.Config
-import prices.routes.{InstanceKindRoutes, InstancePriceRoutes}
-import prices.services.{SmartcloudInstanceKindService, SmartcloudPriceService}
+import prices.routes.{ InstanceKindRoutes, InstancePriceRoutes }
+import prices.services.{ SmartcloudInstanceKindService, SmartcloudPriceService }
 import cats.syntax.semigroupk._
 
 // TODO add macwire
@@ -34,6 +34,8 @@ object Server {
     val httpApp = (
       InstanceKindRoutes[IO](instanceKindService).routes <+> InstancePriceRoutes[IO](instancePriceService).routes
     ).orNotFound
+
+    // todo add request/response logging
 
     Stream
       .eval(

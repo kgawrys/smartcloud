@@ -7,6 +7,7 @@ object Dependencies {
 
     val http4s     = "1.0.0-M29"
     val circe      = "0.15.0-M1"
+    val log4cats   = "2.1.1"
     val logback    = "1.2.6"
     val pureConfig = "0.16.0"
 

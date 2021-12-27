@@ -2,10 +2,11 @@ package prices.routes
 
 import cats.effect.Sync
 import cats.implicits._
+import org.http4s.circe.CirceEntityEncoder._
 import org.http4s.circe.jsonEncoderOf
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.Router
-import org.http4s.{EntityEncoder, HttpRoutes}
+import org.http4s.{ EntityEncoder, HttpRoutes }
 import prices.data.InstanceKind
 import prices.routes.protocol.InstancePriceResponse
 import prices.services.InstancePriceService
@@ -19,7 +20,7 @@ final case class InstancePriceRoutes[F[_]: Sync](instancePriceService: InstanceP
 
   private val get: HttpRoutes[F] = HttpRoutes.of {
     case GET -> Root =>
-     instancePriceService.getInstancePrice(List(InstanceKind("sc2-micro"))).flatMap(Ok(_))
+      instancePriceService.getInstancePrice(InstanceKind("sc2-micro")).flatMap(Ok(_))
   }
 
   def routes: HttpRoutes[F] =

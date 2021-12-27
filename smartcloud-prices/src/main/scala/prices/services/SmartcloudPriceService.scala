@@ -1,11 +1,19 @@
 package prices.services
 
-import cats.implicits._
 import cats.effect._
-import org.http4s._
+import cats.implicits._
+import io.circe.generic.auto._
+import org.http4s.Method._
 import org.http4s.circe._
-import prices.data.{InstanceKind, InstancePrice}
+import org.http4s.client._
+import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.headers._
+import org.http4s.{ MediaType, _ }
+import org.typelevel.log4cats.Logger
+import prices.data.InstanceKind
 import prices.routes.protocol.InstancePriceResponse
+import prices.services.InstancePriceService.Exception.APICallFailure
 
 object SmartcloudPriceService {
 
@@ -15,21 +23,49 @@ object SmartcloudPriceService {
       token: String
   )
 
-  def make[F[_]: Concurrent](config: Config): InstancePriceService[F] = new SmartcloudInstancePriceService(config)
+  def make[F[_]: Async](config: Config): InstancePriceService[F] = new SmartcloudInstancePriceService(config)
 
-  private final class SmartcloudInstancePriceService[F[_]: Concurrent](
+  private final class SmartcloudInstancePriceService[F[_]: Async](
       config: Config
-  ) extends InstancePriceService[F] {
+  ) extends InstancePriceService[F]
+      with Http4sClientDsl[F] {
 
-    implicit val instancePricesEntityDecoder: EntityDecoder[F, List[String]] = jsonOf[F, List[String]]
+    implicit val instancePricesEntityDecoder: EntityDecoder[F, InstancePriceResponse] = jsonOf[F, InstancePriceResponse]
 
-    val getInstancePrice = s"${config.baseUri}/prices"
+    val getInstancePricePath = s"${config.baseUri}/prices"
 
-    override def getInstancePrice(kinds: List[InstanceKind]): F[List[InstancePriceResponse]] =
-      List("sc2-micro", "sc2-small", "sc2-medium")
-        .map(kind => InstancePriceResponse(InstanceKind(kind), InstancePrice(0.0)))
-        .pure[F]
+    // todo add configurable timeout and idleTimeInPool
+    lazy val client: Resource[F, Client[F]] = EmberClientBuilder
+      .default[F]
+//      .withTimeout(c.timeout)
+//      .withIdleTimeInPool(c.idleTimeInPool)
+      .build
 
+    override def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse] =
+      Uri
+        .fromString(getInstancePricePath)
+        .liftTo[F]
+        .flatMap { uri =>
+          val request: Request[F] = GET(
+            uri,
+            Authorization(Credentials.Token(AuthScheme.Bearer, "open sesame")),
+            Accept(MediaType.application.json)
+          )
+          client.use { client =>
+            client
+              .run(request)
+              .use { resp =>
+                resp.status match {
+                  case Status.Ok | Status.Conflict =>
+                    resp.asJsonDecode[InstancePriceResponse]
+                  case st => // todo handle quota exceeded
+                    APICallFailure(
+                      Option(st.reason).getOrElse("unknown")
+                    ).raiseError[F, InstancePriceResponse]
+                }
+              }
+          }
+        }
   }
 
 }

@@ -6,8 +6,7 @@ import prices.routes.protocol.InstancePriceResponse
 import scala.util.control.NoStackTrace
 
 trait InstancePriceService[F[_]] {
-  // todo allow for searching for multiple kind with &
-  def getInstancePrice(kinds: List[InstanceKind]) : F[List[InstancePriceResponse]]
+  def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse]
 }
 
 // todo below can be shared between services

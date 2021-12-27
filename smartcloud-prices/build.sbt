@@ -6,6 +6,7 @@ lazy val root = (project in file("."))
     scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings"))),
     libraryDependencies ++= Seq(
       L.http4s("ember-server"),
+      L.http4s("ember-client"),
       L.http4s("circe"),
       L.http4s("dsl"),
       L.circe,
