@@ -15,6 +15,7 @@ import prices.data.InstanceKind
 import prices.routes.protocol.InstancePriceResponse
 import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure }
 
+// todo check and remove printlns if any
 object SmartcloudPriceService {
 
   // todo this config could be shared across services
