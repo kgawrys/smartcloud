@@ -7,7 +7,6 @@ import org.http4s.Method._
 import org.http4s.circe._
 import org.http4s.client._
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers._
 import org.http4s.{ MediaType, _ }
 import org.typelevel.log4cats.Logger
@@ -77,12 +76,7 @@ object SmartcloudPriceService {
     private def handleResponse(response: Response[F]): F[InstancePriceResponse] =
       response.status match {
         case Status.Ok =>
-          response.asJsonDecode[SmartcloudInstancePriceResponse].map { res =>
-            InstancePriceResponse(
-              kind = InstanceKind(res.kind),
-              amount = InstancePrice(res.price)
-            )
-          }
+          response.asJsonDecode[SmartcloudInstancePriceResponse].map(transformResponse)
         case st @ Status.TooManyRequests => // todo add info for user about exceeded quota and try again later
           val msg = buildMsg(st)
           Logger[F].warn(msg) *>
@@ -96,6 +90,12 @@ object SmartcloudPriceService {
           Logger[F].error(msg) *>
             APICallFailure(msg).raiseError[F, InstancePriceResponse]
       }
+
+    private def transformResponse(resp: SmartcloudInstancePriceResponse): InstancePriceResponse =
+      InstancePriceResponse(
+        kind = InstanceKind(resp.kind),
+        amount = InstancePrice(resp.price)
+      )
 
     private def buildMsg(st: Status) = s"Failed with code: ${st.code} and message: ${Option(st.reason).getOrElse("unknown")}"
   }
