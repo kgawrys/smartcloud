@@ -4,21 +4,14 @@ import cats.implicits._
 import cats.effect._
 import org.http4s._
 import org.http4s.circe._
-
+import prices.config.Config.SmartcloudConfig
 import prices.data._
 
 object SmartcloudInstanceKindService {
 
-  final case class Config(
-      baseUri: String,
-      token: String
-  )
+  def make[F[_]: Concurrent](config: SmartcloudConfig): InstanceKindService[F] = new SmartcloudInstanceKindService(config)
 
-  def make[F[_]: Concurrent](config: Config): InstanceKindService[F] = new SmartcloudInstanceKindService(config)
-
-  private final class SmartcloudInstanceKindService[F[_]: Concurrent](
-      config: Config
-  ) extends InstanceKindService[F] {
+  private final class SmartcloudInstanceKindService[F[_]: Concurrent](config: SmartcloudConfig) extends InstanceKindService[F] {
 
     implicit val instanceKindsEntityDecoder: EntityDecoder[F, List[String]] = jsonOf[F, List[String]]
 

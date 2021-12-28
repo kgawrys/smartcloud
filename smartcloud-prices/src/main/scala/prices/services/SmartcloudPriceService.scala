@@ -10,6 +10,7 @@ import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers._
 import org.http4s.{ MediaType, _ }
 import org.typelevel.log4cats.Logger
+import prices.config.Config.SmartcloudConfig
 import prices.data.{ InstanceKind, InstancePrice }
 import prices.routes.protocol.InstancePriceResponse
 import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure, Unauthorized }
@@ -19,13 +20,11 @@ import prices.services.domain.dto.SmartcloudInstancePriceResponse
 // todo check and remove printlns if any
 object SmartcloudPriceService {
 
-  // todo this config could be shared across services
-  final case class Config(
-      baseUri: String,
-      token: String
-  )
-
-  def make[F[_]: Async: Logger](client: Resource[F, Client[F]], config: Config, smartcloudAuthService: SmartcloudAuthService[F]): InstancePriceService[F] =
+  def make[F[_]: Async: Logger](
+      client: Resource[F, Client[F]],
+      config: SmartcloudConfig,
+      smartcloudAuthService: SmartcloudAuthService[F]
+  ): InstancePriceService[F] =
     new SmartcloudInstancePriceService(
       client,
       config,
@@ -34,7 +33,7 @@ object SmartcloudPriceService {
 
   private final class SmartcloudInstancePriceService[F[_]: Async: Logger](
       client: Resource[F, Client[F]],
-      config: Config,
+      config: SmartcloudConfig,
       smartcloudAuthService: SmartcloudAuthService[F]
   ) extends InstancePriceService[F]
       with Http4sClientDsl[F] {

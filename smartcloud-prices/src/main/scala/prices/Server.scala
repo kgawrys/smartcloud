@@ -29,12 +29,7 @@ object Server {
       //      .withIdleTimeInPool(c.idleTimeInPool)
       .build
 
-    val instanceKindService = SmartcloudInstanceKindService.make[IO](
-      SmartcloudInstanceKindService.Config(
-        config.smartcloud.baseUri,
-        config.smartcloud.token
-      )
-    )
+    val instanceKindService = SmartcloudInstanceKindService.make[IO](config.smartcloud)
 
     val smartcloudAuthService: SmartcloudAuthService[IO] = new SmartcloudAuthService[IO]
 
@@ -42,10 +37,7 @@ object Server {
     // todo share config
     val instancePriceService = SmartcloudPriceService.make[IO](
       httpClient,
-      SmartcloudPriceService.Config(
-        config.smartcloud.baseUri,
-        config.smartcloud.token
-      ),
+      config.smartcloud,
       smartcloudAuthService
     )
 
