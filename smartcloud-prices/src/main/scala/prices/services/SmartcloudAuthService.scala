@@ -1,7 +1,8 @@
 package prices.services
 
 import cats.effect.Async
+import prices.services.domain.SmartcloudAuthToken
 
 class SmartcloudAuthService[F[_]: Async] {
-  def getAuth: F[String] = Async[F].pure("lxwmuKofnxMxz6O2QE1Og")
+  def getAuth: F[SmartcloudAuthToken] = Async[F].pure(SmartcloudAuthToken("lxwmuKofnxMxz6O2QE1Ogh"))
 }

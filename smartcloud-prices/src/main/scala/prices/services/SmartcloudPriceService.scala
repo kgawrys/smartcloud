@@ -13,8 +13,9 @@ import org.http4s.{ MediaType, _ }
 import org.typelevel.log4cats.Logger
 import prices.data.{ InstanceKind, InstancePrice }
 import prices.routes.protocol.InstancePriceResponse
-import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure }
-import prices.services.domain.SmartcloudInstancePriceResponse
+import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure, Unauthorized }
+import prices.services.domain.SmartcloudAuthToken
+import prices.services.domain.dto.SmartcloudInstancePriceResponse
 
 // todo check and remove printlns if any
 object SmartcloudPriceService {
@@ -43,25 +44,34 @@ object SmartcloudPriceService {
 
     val getInstancePricePath = s"${config.baseUri}/instances"
 
-    private def buildRequest(uri: Uri): Request[F] =
-      GET(
-        uri,
-        Authorization(Credentials.Token(AuthScheme.Bearer, "lxwmuKofnxMxz6O2QE1Ogh")), // todo mock some service that returns auth
-        Accept(MediaType.application.json)
+    override def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse] =
+      for {
+        uri <- buildUri(kind)
+        token <- getAuth
+        request <- buildRequest(uri, token)
+        response <- sendRequest(client, request)
+      } yield response
+
+    private def buildUri(kind: InstanceKind): F[Uri] =
+      Uri.fromString(getInstancePricePath + s"/${kind.getString}").liftTo[F]
+
+    private def getAuth: F[SmartcloudAuthToken] = smartcloudAuthService.getAuth
+
+    private def buildRequest(uri: Uri, authToken: SmartcloudAuthToken): F[Request[F]] =
+      Async[F].pure(
+        GET(
+          uri,
+          Authorization(Credentials.Token(AuthScheme.Bearer, authToken.value)),
+          Accept(MediaType.application.json)
+        )
       )
 
-    // todo rewrite to for compr
-    override def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse] =
-      Uri
-        .fromString(getInstancePricePath + s"/${kind.getString}") // todo perhaps adding kind to url should be somewhere else
-        .liftTo[F]
-        .flatMap { uri =>
-          val request = buildRequest(uri) // todo add to error handling flow
-          client.use { client =>
-            client
-              .run(request)
-              .use(handleResponse)
-          }
+    private def sendRequest(client: Resource[F, Client[F]], request: Request[F]): F[InstancePriceResponse] =
+      Logger[F].debug(s"Sending request to Smartcloud: $request") *>
+        client.use { client =>
+          client
+            .run(request)
+            .use(handleResponse)
         }
 
     private def handleResponse(response: Response[F]): F[InstancePriceResponse] =
@@ -77,6 +87,10 @@ object SmartcloudPriceService {
           val msg = buildMsg(st)
           Logger[F].warn(msg) *>
             APITooManyRequestsFailure(msg).raiseError[F, InstancePriceResponse]
+        case st @ Status.Unauthorized =>
+          val msg = buildMsg(st)
+          Logger[F].error(msg) *>
+            Unauthorized(msg).raiseError[F, InstancePriceResponse]
         case st =>
           val msg = buildMsg(st)
           Logger[F].error(msg) *>

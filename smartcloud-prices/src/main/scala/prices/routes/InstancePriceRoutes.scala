@@ -25,7 +25,7 @@ final case class InstancePriceRoutes[F[_]: Sync: Logger](instancePriceService: I
       instancePriceService
         .getInstancePrice(InstanceKind("sc2-micro"))
         .handleErrorWith { err => // todo consider if this is the best way to log unexpected errors
-          Logger[F].error(s"Unexpected failure: $err Message: ${err.getMessage}") *> MonadError[F, Throwable].raiseError(err)
+          Logger[F].error(s"Unexpected failure: $err Message: ${Option(err.getMessage).getOrElse("")}") *> MonadError[F, Throwable].raiseError(err)
         }
         .flatMap(Ok(_))
   }

@@ -1,4 +1,4 @@
-package prices.services.domain
+package prices.services.domain.dto
 
 import java.time.ZonedDateTime
 
