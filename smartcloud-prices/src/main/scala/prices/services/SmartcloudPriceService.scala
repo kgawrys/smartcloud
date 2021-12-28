@@ -46,9 +46,9 @@ object SmartcloudPriceService {
 
     override def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse] =
       for {
-        uri <- buildUri(kind)
-        token <- getAuth
-        request <- buildRequest(uri, token)
+        uri      <- buildUri(kind)
+        token    <- getAuth
+        request  <- buildRequest(uri, token)
         response <- sendRequest(client, request)
       } yield response
 
