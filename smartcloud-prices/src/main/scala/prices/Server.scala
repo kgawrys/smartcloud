@@ -4,11 +4,12 @@ import cats.effect._
 import com.comcast.ip4s._
 import fs2.Stream
 import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.server.middleware.Logger
+import org.http4s.server.middleware.{ Logger, RequestLogger, ResponseLogger }
 import prices.config.Config
 import prices.routes.{ InstanceKindRoutes, InstancePriceRoutes }
 import prices.services.{ SmartcloudAuthService, SmartcloudInstanceKindService, SmartcloudPriceService }
 import cats.syntax.semigroupk._
+import org.http4s.HttpApp
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -32,19 +33,23 @@ object Server {
 
     val smartcloudAuthService: SmartcloudAuthService[IO] = new SmartcloudAuthService[IO]
 
-    // todo rename from price to kind service
-    // todo share config
     val instancePriceService = SmartcloudPriceService.make[IO](
       httpClient,
       config.smartcloud,
       smartcloudAuthService
     )
 
-    val httpApp = (
+    val loggers: HttpApp[IO] => HttpApp[IO] = {
+      { http: HttpApp[IO] =>
+        RequestLogger.httpApp(true, true)(http)
+      } andThen { http: HttpApp[IO] =>
+        ResponseLogger.httpApp(true, true)(http)
+      }
+    }
+
+    val routes = (
       InstanceKindRoutes[IO](instanceKindService).routes <+> InstancePriceRoutes[IO](instancePriceService).routes
     ).orNotFound
-
-    // todo add request/response logging
 
     // todo extract building server to separate class
     Stream
@@ -53,7 +58,7 @@ object Server {
           .default[IO]
           .withHost(Host.fromString(config.app.host).get)
           .withPort(Port.fromInt(config.app.port).get)
-          .withHttpApp(Logger.httpApp(true, true)(httpApp))
+          .withHttpApp(loggers(routes))
           .build
           .useForever
       )
