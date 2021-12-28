@@ -13,7 +13,7 @@ import org.http4s.{ MediaType, _ }
 import org.typelevel.log4cats.Logger
 import prices.data.InstanceKind
 import prices.routes.protocol.InstancePriceResponse
-import prices.services.InstancePriceService.Exception.APICallFailure
+import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure }
 
 object SmartcloudPriceService {
 
@@ -23,16 +23,16 @@ object SmartcloudPriceService {
       token: String
   )
 
-  def make[F[_]: Async](config: Config): InstancePriceService[F] = new SmartcloudInstancePriceService(config)
+  def make[F[_]: Async: Logger](config: Config): InstancePriceService[F] = new SmartcloudInstancePriceService(config)
 
-  private final class SmartcloudInstancePriceService[F[_]: Async](
+  private final class SmartcloudInstancePriceService[F[_]: Async: Logger](
       config: Config
   ) extends InstancePriceService[F]
       with Http4sClientDsl[F] {
 
     implicit val instancePricesEntityDecoder: EntityDecoder[F, InstancePriceResponse] = jsonOf[F, InstancePriceResponse]
 
-    val getInstancePricePath = s"${config.baseUri}/prices"
+    val getInstancePricePath = s"${config.baseUri}/instances"
 
     // todo add configurable timeout and idleTimeInPool
     lazy val client: Resource[F, Client[F]] = EmberClientBuilder
@@ -41,31 +41,43 @@ object SmartcloudPriceService {
 //      .withIdleTimeInPool(c.idleTimeInPool)
       .build
 
+    private def buildRequest(uri: Uri, kind: InstanceKind): Request[F] = {
+      val uriWithQueryParams = uri.withQueryParam("kind", kind.getString) // todo consider when no query params are passed
+      GET(
+        uriWithQueryParams,
+        Authorization(Credentials.Token(AuthScheme.Bearer, "open sesame")), // todo mock some service that returns auth
+        Accept(MediaType.application.json)
+      )
+    }
+
+    // todo rewrite to for compr
     override def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse] =
       Uri
         .fromString(getInstancePricePath)
         .liftTo[F]
         .flatMap { uri =>
-          val request: Request[F] = GET(
-            uri,
-            Authorization(Credentials.Token(AuthScheme.Bearer, "open sesame")),
-            Accept(MediaType.application.json)
-          )
+          val request = buildRequest(uri, kind) // todo add to error handling flow
           client.use { client =>
             client
               .run(request)
               .use { resp =>
-                resp.status match {
-                  case Status.Ok | Status.Conflict =>
+                resp.status match { // todo handle unauth
+                  case Status.Ok =>
                     resp.asJsonDecode[InstancePriceResponse]
-                  case st => // todo handle quota exceeded
-                    APICallFailure(
-                      Option(st.reason).getOrElse("unknown")
-                    ).raiseError[F, InstancePriceResponse]
+                  case st @ Status.TooManyRequests =>
+                    val msg = buildMsg(st)
+                    Logger[F].warn(msg) *>
+                      APITooManyRequestsFailure(msg).raiseError[F, InstancePriceResponse]
+                  case st =>
+                    val msg = buildMsg(st)
+                    Logger[F].error(msg) *>
+                      APICallFailure(msg).raiseError[F, InstancePriceResponse]
                 }
               }
           }
         }
+
+    private def buildMsg(st: Status) = s"Failed with code: ${st.code} and message: ${Option(st.reason).getOrElse("unknown")}"
   }
 
 }

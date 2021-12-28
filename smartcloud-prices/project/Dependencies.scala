@@ -24,6 +24,7 @@ object Dependencies {
     def http4s(module: String): ModuleID = "org.http4s" %% s"http4s-$module" % V.http4s
 
     val circe      = "io.circe"              %% "circe-generic"   % V.circe
+    val log4cats   = "org.typelevel"         %% "log4cats-slf4j"  % V.log4cats
     val logback    = "ch.qos.logback"         % "logback-classic" % V.logback
     val pureConfig = "com.github.pureconfig" %% "pureconfig"      % V.pureConfig
   }

@@ -9,11 +9,15 @@ import prices.config.Config
 import prices.routes.{ InstanceKindRoutes, InstancePriceRoutes }
 import prices.services.{ SmartcloudInstanceKindService, SmartcloudPriceService }
 import cats.syntax.semigroupk._
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 // TODO add macwire
 object Server {
 
   def serve(config: Config): Stream[IO, ExitCode] = {
+
+    implicit val logger: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
 
     val instanceKindService = SmartcloudInstanceKindService.make[IO](
       SmartcloudInstanceKindService.Config(

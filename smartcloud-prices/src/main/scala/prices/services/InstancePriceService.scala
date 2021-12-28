@@ -14,5 +14,6 @@ object InstancePriceService {
   sealed trait Exception extends NoStackTrace
   object Exception {
     case class APICallFailure(message: String) extends Exception
+    case class APITooManyRequestsFailure(message: String) extends Exception
   }
 }
