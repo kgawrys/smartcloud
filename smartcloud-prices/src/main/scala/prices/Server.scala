@@ -21,12 +21,11 @@ object Server {
 
     implicit val logger: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
 
-    // todo add configurable timeout and idleTimeInPool
     // todo add to separate class resource
     lazy val httpClient: Resource[IO, Client[IO]] = EmberClientBuilder
       .default[IO]
-      //      .withTimeout(c.timeout)
-      //      .withIdleTimeInPool(c.idleTimeInPool)
+      .withTimeout(config.httpClient.timeout)
+      .withIdleTimeInPool(config.httpClient.idleTimeInPool)
       .build
 
     val instanceKindService = SmartcloudInstanceKindService.make[IO](config.smartcloud)
