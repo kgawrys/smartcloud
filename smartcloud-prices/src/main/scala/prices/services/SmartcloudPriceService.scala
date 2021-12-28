@@ -25,12 +25,15 @@ object SmartcloudPriceService {
       token: String
   )
 
-  def make[F[_]: Async: Logger](config: Config, smartcloudAuthService: SmartcloudAuthService[F]): InstancePriceService[F] = new SmartcloudInstancePriceService(
-    config,
-    smartcloudAuthService
-  )
+  def make[F[_]: Async: Logger](client: Resource[F, Client[F]], config: Config, smartcloudAuthService: SmartcloudAuthService[F]): InstancePriceService[F] =
+    new SmartcloudInstancePriceService(
+      client,
+      config,
+      smartcloudAuthService
+    )
 
   private final class SmartcloudInstancePriceService[F[_]: Async: Logger](
+      client: Resource[F, Client[F]],
       config: Config,
       smartcloudAuthService: SmartcloudAuthService[F]
   ) extends InstancePriceService[F]
@@ -39,13 +42,6 @@ object SmartcloudPriceService {
     implicit val instancePricesEntityDecoder: EntityDecoder[F, InstancePriceResponse] = jsonOf[F, InstancePriceResponse]
 
     val getInstancePricePath = s"${config.baseUri}/instances"
-
-    // todo add configurable timeout and idleTimeInPool
-    lazy val client: Resource[F, Client[F]] = EmberClientBuilder
-      .default[F]
-//      .withTimeout(c.timeout)
-//      .withIdleTimeInPool(c.idleTimeInPool)
-      .build
 
     private def buildRequest(uri: Uri): Request[F] =
       GET(

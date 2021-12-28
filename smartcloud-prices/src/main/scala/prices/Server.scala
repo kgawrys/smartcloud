@@ -9,6 +9,8 @@ import prices.config.Config
 import prices.routes.{ InstanceKindRoutes, InstancePriceRoutes }
 import prices.services.{ SmartcloudAuthService, SmartcloudInstanceKindService, SmartcloudPriceService }
 import cats.syntax.semigroupk._
+import org.http4s.client.Client
+import org.http4s.ember.client.EmberClientBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
@@ -18,6 +20,14 @@ object Server {
   def serve(config: Config): Stream[IO, ExitCode] = {
 
     implicit val logger: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
+
+    // todo add configurable timeout and idleTimeInPool
+    // todo add to separate class resource
+    lazy val httpClient: Resource[IO, Client[IO]] = EmberClientBuilder
+      .default[IO]
+      //      .withTimeout(c.timeout)
+      //      .withIdleTimeInPool(c.idleTimeInPool)
+      .build
 
     val instanceKindService = SmartcloudInstanceKindService.make[IO](
       SmartcloudInstanceKindService.Config(
@@ -31,6 +41,7 @@ object Server {
     // todo rename from price to kind service
     // todo share config
     val instancePriceService = SmartcloudPriceService.make[IO](
+      httpClient,
       SmartcloudPriceService.Config(
         config.smartcloud.baseUri,
         config.smartcloud.token
@@ -44,6 +55,7 @@ object Server {
 
     // todo add request/response logging
 
+    // todo extract building server to separate class
     Stream
       .eval(
         EmberServerBuilder
