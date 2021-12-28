@@ -60,27 +60,28 @@ object SmartcloudPriceService {
           client.use { client =>
             client
               .run(request)
-              .use { resp =>
-                resp.status match { // todo handle unauth
-                  case Status.Ok =>
-                    resp.asJsonDecode[SmartcloudInstancePriceResponse].map { res =>
-                      InstancePriceResponse(
-                        kind = InstanceKind(res.kind),
-                        amount = InstancePrice(res.price)
-                      )
-                    }
-                  case st @ Status.TooManyRequests =>
-                    val msg = buildMsg(st)
-                    Logger[F].warn(msg) *>
-                      APITooManyRequestsFailure(msg).raiseError[F, InstancePriceResponse]
-                  case st =>
-                    val msg = buildMsg(st)
-                    Logger[F].error(msg) *>
-                      APICallFailure(msg).raiseError[F, InstancePriceResponse]
-                }
-              }
+              .use(handleResponse)
           }
         }
+
+    private def handleResponse(response: Response[F]): F[InstancePriceResponse] =
+      response.status match {
+        case Status.Ok =>
+          response.asJsonDecode[SmartcloudInstancePriceResponse].map { res =>
+            InstancePriceResponse(
+              kind = InstanceKind(res.kind),
+              amount = InstancePrice(res.price)
+            )
+          }
+        case st @ Status.TooManyRequests => // todo add info for user about exceeded quota and try again later
+          val msg = buildMsg(st)
+          Logger[F].warn(msg) *>
+            APITooManyRequestsFailure(msg).raiseError[F, InstancePriceResponse]
+        case st =>
+          val msg = buildMsg(st)
+          Logger[F].error(msg) *>
+            APICallFailure(msg).raiseError[F, InstancePriceResponse]
+      }
 
     private def buildMsg(st: Status) = s"Failed with code: ${st.code} and message: ${Option(st.reason).getOrElse("unknown")}"
   }
