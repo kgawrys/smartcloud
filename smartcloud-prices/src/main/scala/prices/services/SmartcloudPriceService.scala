@@ -11,9 +11,10 @@ import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers._
 import org.http4s.{ MediaType, _ }
 import org.typelevel.log4cats.Logger
-import prices.data.InstanceKind
+import prices.data.{ InstanceKind, InstancePrice }
 import prices.routes.protocol.InstancePriceResponse
 import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure }
+import prices.services.domain.SmartcloudInstancePriceResponse
 
 // todo check and remove printlns if any
 object SmartcloudPriceService {
@@ -46,29 +47,32 @@ object SmartcloudPriceService {
 //      .withIdleTimeInPool(c.idleTimeInPool)
       .build
 
-    private def buildRequest(uri: Uri, kind: InstanceKind): Request[F] = {
-      val uriWithQueryParams = uri.withQueryParam("kind", kind.getString) // todo consider when no query params are passed
+    private def buildRequest(uri: Uri): Request[F] =
       GET(
-        uriWithQueryParams,
+        uri,
         Authorization(Credentials.Token(AuthScheme.Bearer, "lxwmuKofnxMxz6O2QE1Ogh")), // todo mock some service that returns auth
         Accept(MediaType.application.json)
       )
-    }
 
     // todo rewrite to for compr
     override def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse] =
       Uri
-        .fromString(getInstancePricePath)
+        .fromString(getInstancePricePath + s"/${kind.getString}") // todo perhaps adding kind to url should be somewhere else
         .liftTo[F]
         .flatMap { uri =>
-          val request = buildRequest(uri, kind) // todo add to error handling flow
+          val request = buildRequest(uri) // todo add to error handling flow
           client.use { client =>
             client
               .run(request)
               .use { resp =>
                 resp.status match { // todo handle unauth
                   case Status.Ok =>
-                    resp.asJsonDecode[InstancePriceResponse]
+                    resp.asJsonDecode[SmartcloudInstancePriceResponse].map { res =>
+                      InstancePriceResponse(
+                        kind = InstanceKind(res.kind),
+                        amount = InstancePrice(res.price)
+                      )
+                    }
                   case st @ Status.TooManyRequests =>
                     val msg = buildMsg(st)
                     Logger[F].warn(msg) *>
