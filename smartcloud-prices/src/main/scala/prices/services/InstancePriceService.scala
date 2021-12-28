@@ -9,11 +9,10 @@ trait InstancePriceService[F[_]] {
   def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse]
 }
 
-// todo below can be shared between services
 object InstancePriceService {
   sealed trait Exception extends NoStackTrace
   object Exception {
-    case class Unauthorized(message: String) extends Exception
+    case class APIUnauthorized(message: String) extends Exception
     case class APICallFailure(message: String) extends Exception
     case class APITooManyRequestsFailure(message: String) extends Exception
   }

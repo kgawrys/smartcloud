@@ -12,6 +12,7 @@ import org.typelevel.log4cats.Logger
 import prices.data.InstanceKind
 import prices.routes.protocol.InstancePriceResponse
 import prices.services.InstancePriceService
+import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure, APIUnauthorized }
 
 final case class InstancePriceRoutes[F[_]: Sync: Logger](instancePriceService: InstancePriceService[F]) extends Http4sDsl[F] {
 
@@ -24,10 +25,15 @@ final case class InstancePriceRoutes[F[_]: Sync: Logger](instancePriceService: I
     case GET -> Root =>
       instancePriceService
         .getInstancePrice(InstanceKind("sc2-micro"))
-        .handleErrorWith { err => // todo consider if this is the best way to log unexpected errors
+        .handleErrorWith { err =>
           Logger[F].error(s"Unexpected failure: $err Message: ${Option(err.getMessage).getOrElse("")}") *> MonadError[F, Throwable].raiseError(err)
         }
         .flatMap(Ok(_))
+        .recoverWith {
+          case APIUnauthorized(_)           => InternalServerError()
+          case APICallFailure(_)            => InternalServerError()
+          case APITooManyRequestsFailure(_) => TooManyRequests("Quota of Smartcloud API exceeded, please try again later.")
+        }
   }
 
   def routes: HttpRoutes[F] =

@@ -13,7 +13,7 @@ import org.typelevel.log4cats.Logger
 import prices.config.Config.SmartcloudConfig
 import prices.data.{ InstanceKind, InstancePrice }
 import prices.routes.protocol.InstancePriceResponse
-import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure, Unauthorized }
+import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure, APIUnauthorized }
 import prices.services.domain.SmartcloudAuthToken
 import prices.services.domain.dto.SmartcloudInstancePriceResponse
 
@@ -76,14 +76,14 @@ object SmartcloudPriceService {
       response.status match {
         case Status.Ok =>
           response.asJsonDecode[SmartcloudInstancePriceResponse].map(transformResponse)
-        case st @ Status.TooManyRequests => // todo add info for user about exceeded quota and try again later
+        case st @ Status.TooManyRequests =>
           val msg = buildMsg(st)
           Logger[F].warn(msg) *>
             APITooManyRequestsFailure(msg).raiseError[F, InstancePriceResponse]
         case st @ Status.Unauthorized =>
           val msg = buildMsg(st)
           Logger[F].error(msg) *>
-            Unauthorized(msg).raiseError[F, InstancePriceResponse]
+            APIUnauthorized(msg).raiseError[F, InstancePriceResponse]
         case st =>
           val msg = buildMsg(st)
           Logger[F].error(msg) *>
