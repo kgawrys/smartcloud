@@ -7,7 +7,7 @@ import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.middleware.Logger
 import prices.config.Config
 import prices.routes.{ InstanceKindRoutes, InstancePriceRoutes }
-import prices.services.{ SmartcloudInstanceKindService, SmartcloudPriceService }
+import prices.services.{ SmartcloudAuthService, SmartcloudInstanceKindService, SmartcloudPriceService }
 import cats.syntax.semigroupk._
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -26,13 +26,16 @@ object Server {
       )
     )
 
+    val smartcloudAuthService: SmartcloudAuthService[IO] = new SmartcloudAuthService[IO]
+
     // todo rename from price to kind service
     // todo share config
     val instancePriceService = SmartcloudPriceService.make[IO](
       SmartcloudPriceService.Config(
         config.smartcloud.baseUri,
         config.smartcloud.token
-      )
+      ),
+      smartcloudAuthService
     )
 
     val httpApp = (

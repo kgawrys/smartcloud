@@ -23,10 +23,14 @@ object SmartcloudPriceService {
       token: String
   )
 
-  def make[F[_]: Async: Logger](config: Config): InstancePriceService[F] = new SmartcloudInstancePriceService(config)
+  def make[F[_]: Async: Logger](config: Config, smartcloudAuthService: SmartcloudAuthService[F]): InstancePriceService[F] = new SmartcloudInstancePriceService(
+    config,
+    smartcloudAuthService
+  )
 
   private final class SmartcloudInstancePriceService[F[_]: Async: Logger](
-      config: Config
+      config: Config,
+      smartcloudAuthService: SmartcloudAuthService[F]
   ) extends InstancePriceService[F]
       with Http4sClientDsl[F] {
 
@@ -45,7 +49,7 @@ object SmartcloudPriceService {
       val uriWithQueryParams = uri.withQueryParam("kind", kind.getString) // todo consider when no query params are passed
       GET(
         uriWithQueryParams,
-        Authorization(Credentials.Token(AuthScheme.Bearer, "open sesame")), // todo mock some service that returns auth
+        Authorization(Credentials.Token(AuthScheme.Bearer, "lxwmuKofnxMxz6O2QE1Ogh")), // todo mock some service that returns auth
         Accept(MediaType.application.json)
       )
     }
