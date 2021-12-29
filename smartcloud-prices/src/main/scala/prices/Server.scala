@@ -48,13 +48,12 @@ object Server {
       InstanceKindRoutes[IO](instanceKindService).routes <+> InstancePriceRoutes[IO](instancePriceService).routes
     ).orNotFound
 
-    // todo extract building server to separate class
     Stream
       .eval(
         EmberServerBuilder
           .default[IO]
-          .withHost(Host.fromString(config.app.host).get)
-          .withPort(Port.fromInt(config.app.port).get)
+          .withHost(config.app.host)
+          .withPort(config.app.port)
           .withHttpApp(loggers(routes))
           .build
           .useForever
