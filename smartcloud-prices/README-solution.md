@@ -27,7 +27,7 @@ Also the Smartcloud docker api returns only one instance in result, thus I assum
 should not be an list, and contain price of only one machine.
 
 - I didn't implement nor written tests for the InstanceKindService as the README.md states only to implement `SmartcloudPriceService` service
-
+- There are only unit tests. No integration tests were required as no external (or embedded) services were used (such as e.g. external API/databases/messaging brokers) 
 
 # Various ideas for future implementation
 - Add tracking ID to each request to allow following logs flow when debugging
@@ -47,3 +47,5 @@ example request:
 curl --location --request GET 'localhost:8080/prices?kind=sc2-micro'
 ```
 
+to run tests:
+`sbt test`
