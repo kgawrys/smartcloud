@@ -15,10 +15,9 @@ import prices.config.Config.SmartcloudConfig
 import prices.data.{ InstanceKind, InstancePrice }
 import prices.routes.protocol.InstancePriceResponse
 import prices.services.InstancePriceService.SmartcloudException
-import prices.services.InstancePriceService.SmartcloudException.{ APICallFailure, APITooManyRequestsFailure, APIUnauthorized }
+import prices.services.InstancePriceService.SmartcloudException.{ APICallFailure, APITooManyRequestsFailure, APIUnauthorized, KindNotFound }
 import prices.services.domain.dto.SmartcloudInstancePriceResponse
 
-// todo check and remove printlns if any
 object SmartcloudPriceService {
 
   def make[F[_]: Async: Logger](
@@ -74,6 +73,7 @@ object SmartcloudPriceService {
     private def handleResponse(response: Response[F]): F[InstancePriceResponse] =
       response.status match {
         case Status.Ok                   => response.asJsonDecode[SmartcloudInstancePriceResponse].map(transformResponse)
+        case st @ Status.NotFound        => KindNotFound(buildMsg(st)).raiseError[F, InstancePriceResponse]
         case st @ Status.TooManyRequests => APITooManyRequestsFailure(buildMsg(st)).raiseError[F, InstancePriceResponse]
         case st @ Status.Unauthorized    => APIUnauthorized(buildMsg(st)).raiseError[F, InstancePriceResponse]
         case st                          => APICallFailure(buildMsg(st)).raiseError[F, InstancePriceResponse]

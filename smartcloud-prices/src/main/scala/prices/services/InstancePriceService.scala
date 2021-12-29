@@ -14,6 +14,7 @@ object InstancePriceService {
     val message: String
   }
   object SmartcloudException {
+    case class KindNotFound(message: String) extends SmartcloudException
     case class APIUnauthorized(message: String) extends SmartcloudException
     case class APICallFailure(message: String) extends SmartcloudException
     case class APITooManyRequestsFailure(message: String) extends SmartcloudException
