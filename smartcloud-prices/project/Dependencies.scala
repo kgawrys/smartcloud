@@ -6,7 +6,6 @@ object Dependencies {
     // Scala
 
     val http4s     = "1.0.0-M29"
-    val catsEffect = "3.3.1"
     val circe      = "0.14.1"
     val log4cats   = "2.1.1"
     val logback    = "1.2.6"
