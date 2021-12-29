@@ -12,7 +12,7 @@ import org.http4s.headers._
 import org.http4s.{ MediaType, _ }
 import org.typelevel.log4cats.Logger
 import prices.config.Config.SmartcloudConfig
-import prices.data.{ InstanceKind, InstancePrice }
+import prices.data.InstanceKind
 import prices.routes.protocol.InstancePriceResponse
 import prices.services.InstancePriceService.SmartcloudException
 import prices.services.InstancePriceService.SmartcloudException.{ APICallFailure, APITooManyRequestsFailure, APIUnauthorized, KindNotFound }
@@ -76,18 +76,12 @@ object SmartcloudPriceService {
 
     private def handleResponse(response: Response[F]): F[InstancePriceResponse] =
       response.status match {
-        case Status.Ok                   => response.asJsonDecode[SmartcloudInstancePriceResponse].map(transformResponse)
+        case Status.Ok                   => response.asJsonDecode[SmartcloudInstancePriceResponse].map(InstancePriceResponse.from)
         case st @ Status.NotFound        => KindNotFound(buildMsg(st)).raiseError[F, InstancePriceResponse]
         case st @ Status.TooManyRequests => APITooManyRequestsFailure(buildMsg(st)).raiseError[F, InstancePriceResponse]
         case st @ Status.Unauthorized    => APIUnauthorized(buildMsg(st)).raiseError[F, InstancePriceResponse]
         case st                          => APICallFailure(buildMsg(st)).raiseError[F, InstancePriceResponse]
       }
-
-    private def transformResponse(resp: SmartcloudInstancePriceResponse): InstancePriceResponse =
-      InstancePriceResponse(
-        kind = InstanceKind(resp.kind),
-        amount = InstancePrice(resp.price)
-      )
 
     private def buildMsg(st: Status) = s"Failed with code: ${st.code} and message: ${Option(st.reason).getOrElse("unknown")}"
   }

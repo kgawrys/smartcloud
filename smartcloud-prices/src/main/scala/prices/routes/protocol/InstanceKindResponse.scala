@@ -9,6 +9,7 @@ final case class InstanceKindResponse(value: InstanceKind)
 
 object InstanceKindResponse {
 
+  // TODO remove it, replace with circe macros
   implicit val encoder: Encoder[InstanceKindResponse] =
     Encoder.instance[InstanceKindResponse] {
       case InstanceKindResponse(k) =>
