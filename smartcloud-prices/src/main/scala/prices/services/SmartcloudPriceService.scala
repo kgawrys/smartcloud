@@ -1,5 +1,6 @@
 package prices.services
 
+import cats.MonadError
 import cats.effect._
 import cats.implicits._
 import io.circe.generic.auto._
@@ -13,7 +14,8 @@ import org.typelevel.log4cats.Logger
 import prices.config.Config.SmartcloudConfig
 import prices.data.{ InstanceKind, InstancePrice }
 import prices.routes.protocol.InstancePriceResponse
-import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure, APIUnauthorized }
+import prices.services.InstancePriceService.SmartcloudException
+import prices.services.InstancePriceService.SmartcloudException.{ APICallFailure, APITooManyRequestsFailure, APIUnauthorized }
 import prices.services.domain.dto.SmartcloudInstancePriceResponse
 
 // todo check and remove printlns if any
@@ -38,12 +40,18 @@ object SmartcloudPriceService {
 
     val getInstancePricePath = s"${config.baseUri}/instances"
 
-    override def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse] =
-      for {
+    override def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse] = {
+      val result = for {
         uri      <- buildUri(kind)
         request  <- buildRequest(uri)
         response <- sendRequest(client, request)
       } yield response
+
+      result.handleErrorWith {
+        case err: SmartcloudException =>
+          Logger[F].error(s"Unexpected failure: $err Message: ${err.message}") *> MonadError[F, Throwable].raiseError(err)
+      }
+    }
 
     private def buildUri(kind: InstanceKind): F[Uri] =
       Uri.fromString(getInstancePricePath + s"/${kind.getString}").liftTo[F]
@@ -65,20 +73,10 @@ object SmartcloudPriceService {
 
     private def handleResponse(response: Response[F]): F[InstancePriceResponse] =
       response.status match {
-        case Status.Ok =>
-          response.asJsonDecode[SmartcloudInstancePriceResponse].map(transformResponse)
-        case st @ Status.TooManyRequests =>
-          val msg = buildMsg(st)
-          Logger[F].warn(msg) *>
-            APITooManyRequestsFailure(msg).raiseError[F, InstancePriceResponse]
-        case st @ Status.Unauthorized =>
-          val msg = buildMsg(st)
-          Logger[F].error(msg) *>
-            APIUnauthorized(msg).raiseError[F, InstancePriceResponse]
-        case st =>
-          val msg = buildMsg(st)
-          Logger[F].error(msg) *>
-            APICallFailure(msg).raiseError[F, InstancePriceResponse]
+        case Status.Ok                   => response.asJsonDecode[SmartcloudInstancePriceResponse].map(transformResponse)
+        case st @ Status.TooManyRequests => APITooManyRequestsFailure(buildMsg(st)).raiseError[F, InstancePriceResponse]
+        case st @ Status.Unauthorized    => APIUnauthorized(buildMsg(st)).raiseError[F, InstancePriceResponse]
+        case st                          => APICallFailure(buildMsg(st)).raiseError[F, InstancePriceResponse]
       }
 
     private def transformResponse(resp: SmartcloudInstancePriceResponse): InstancePriceResponse =

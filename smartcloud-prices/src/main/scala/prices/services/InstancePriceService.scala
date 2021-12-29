@@ -10,10 +10,12 @@ trait InstancePriceService[F[_]] {
 }
 
 object InstancePriceService {
-  sealed trait Exception extends NoStackTrace
-  object Exception {
-    case class APIUnauthorized(message: String) extends Exception
-    case class APICallFailure(message: String) extends Exception
-    case class APITooManyRequestsFailure(message: String) extends Exception
+  sealed trait SmartcloudException extends NoStackTrace {
+    val message: String
+  }
+  object SmartcloudException {
+    case class APIUnauthorized(message: String) extends SmartcloudException
+    case class APICallFailure(message: String) extends SmartcloudException
+    case class APITooManyRequestsFailure(message: String) extends SmartcloudException
   }
 }
