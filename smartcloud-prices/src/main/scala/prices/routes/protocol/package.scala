@@ -8,8 +8,8 @@ import prices.data._
 package object protocol {
 
   implicit val instanceKindQueryParam: QueryParamDecoder[InstanceKind] =
-    QueryParamDecoder[String].map(InstanceKind.apply)
+    QueryParamDecoder[String].map(InstanceKind)
 
-  object InstanceKindQueryParam extends QueryParamDecoderMatcher[InstanceKind]("instanceKind")
+  object InstanceKindQueryParam extends QueryParamDecoderMatcher[InstanceKind]("kind")
 
 }

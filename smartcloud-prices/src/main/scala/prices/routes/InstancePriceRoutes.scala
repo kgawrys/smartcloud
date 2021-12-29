@@ -2,20 +2,18 @@ package prices.routes
 
 import cats.effect.Sync
 import cats.implicits._
-import org.http4s.{ HttpRoutes, QueryParamDecoder }
+import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityEncoder._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.Router
-import prices.data.InstanceKind
 import prices.services.InstancePriceService
 import prices.services.InstancePriceService.SmartcloudException.{ APICallFailure, APITooManyRequestsFailure, APIUnauthorized, KindNotFound }
 
 final case class InstancePriceRoutes[F[_]: Sync](instancePriceService: InstancePriceService[F]) extends Http4sDsl[F] {
 
-  val prefix = "/prices"
+  import protocol._
 
-  implicit val instanceKindQueryParamDecoder: QueryParamDecoder[InstanceKind] = QueryParamDecoder[String].map(InstanceKind)
-  object InstanceKindQueryParam extends QueryParamDecoderMatcher[InstanceKind]("kind")
+  val prefix = "/prices"
 
   private val get: HttpRoutes[F] = HttpRoutes.of {
     case GET -> Root :? InstanceKindQueryParam(instanceKind) =>
