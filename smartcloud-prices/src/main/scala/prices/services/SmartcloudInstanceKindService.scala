@@ -17,6 +17,7 @@ object SmartcloudInstanceKindService {
 
     val getAllUri = s"${config.baseUri}/instances"
 
+    // TODO implement this
     override def getAll(): F[List[InstanceKind]] =
       List("sc2-micro", "sc2-small", "sc2-medium") // Dummy data. Your implementation should call the smartcloud API.
         .map(InstanceKind(_))

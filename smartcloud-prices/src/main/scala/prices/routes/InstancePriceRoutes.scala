@@ -24,7 +24,7 @@ final case class InstancePriceRoutes[F[_]: Sync: Logger](instancePriceService: I
   private val get: HttpRoutes[F] = HttpRoutes.of {
     case GET -> Root =>
       instancePriceService
-        .getInstancePrice(InstanceKind("sc2-micro"))
+        .getInstancePrice(InstanceKind("sc2-micro")) // todo get kind from query param
         .handleErrorWith { err =>
           Logger[F].error(s"Unexpected failure: $err Message: ${Option(err.getMessage).getOrElse("")}") *> MonadError[F, Throwable].raiseError(err)
         }

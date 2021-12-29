@@ -14,7 +14,6 @@ import prices.config.Config.SmartcloudConfig
 import prices.data.{ InstanceKind, InstancePrice }
 import prices.routes.protocol.InstancePriceResponse
 import prices.services.InstancePriceService.Exception.{ APICallFailure, APITooManyRequestsFailure, APIUnauthorized }
-import prices.services.domain.SmartcloudAuthToken
 import prices.services.domain.dto.SmartcloudInstancePriceResponse
 
 // todo check and remove printlns if any
@@ -22,19 +21,16 @@ object SmartcloudPriceService {
 
   def make[F[_]: Async: Logger](
       client: Resource[F, Client[F]],
-      config: SmartcloudConfig,
-      smartcloudAuthService: SmartcloudAuthService[F]
+      config: SmartcloudConfig
   ): InstancePriceService[F] =
     new SmartcloudInstancePriceService(
       client,
-      config,
-      smartcloudAuthService
+      config
     )
 
   private final class SmartcloudInstancePriceService[F[_]: Async: Logger](
       client: Resource[F, Client[F]],
-      config: SmartcloudConfig,
-      smartcloudAuthService: SmartcloudAuthService[F]
+      config: SmartcloudConfig
   ) extends InstancePriceService[F]
       with Http4sClientDsl[F] {
 
@@ -45,21 +41,18 @@ object SmartcloudPriceService {
     override def getInstancePrice(kind: InstanceKind): F[InstancePriceResponse] =
       for {
         uri      <- buildUri(kind)
-        token    <- getAuth
-        request  <- buildRequest(uri, token)
+        request  <- buildRequest(uri)
         response <- sendRequest(client, request)
       } yield response
 
     private def buildUri(kind: InstanceKind): F[Uri] =
       Uri.fromString(getInstancePricePath + s"/${kind.getString}").liftTo[F]
 
-    private def getAuth: F[SmartcloudAuthToken] = smartcloudAuthService.getAuth
-
-    private def buildRequest(uri: Uri, authToken: SmartcloudAuthToken): F[Request[F]] =
+    private def buildRequest(uri: Uri): F[Request[F]] =
       Async[F].pure(
         GET(
           uri,
-          Authorization(Credentials.Token(AuthScheme.Bearer, authToken.value)),
+          Authorization(Credentials.Token(AuthScheme.Bearer, config.token)),
           Accept(MediaType.application.json)
         )
       )

@@ -7,7 +7,7 @@ import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.middleware.{ Logger, RequestLogger, ResponseLogger }
 import prices.config.Config
 import prices.routes.{ InstanceKindRoutes, InstancePriceRoutes }
-import prices.services.{ SmartcloudAuthService, SmartcloudInstanceKindService, SmartcloudPriceService }
+import prices.services.{ SmartcloudInstanceKindService, SmartcloudPriceService }
 import cats.syntax.semigroupk._
 import org.http4s.HttpApp
 import org.http4s.client.Client
@@ -31,12 +31,9 @@ object Server {
 
     val instanceKindService = SmartcloudInstanceKindService.make[IO](config.smartcloud)
 
-    val smartcloudAuthService: SmartcloudAuthService[IO] = new SmartcloudAuthService[IO]
-
     val instancePriceService = SmartcloudPriceService.make[IO](
       httpClient,
-      config.smartcloud,
-      smartcloudAuthService
+      config.smartcloud
     )
 
     val loggers: HttpApp[IO] => HttpApp[IO] = {
