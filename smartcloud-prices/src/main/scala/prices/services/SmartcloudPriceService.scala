@@ -20,7 +20,7 @@ import prices.services.domain.dto.SmartcloudInstancePriceResponse
 object SmartcloudPriceService {
 
   def make[F[_]: Async: Logger](
-      client: Resource[F, Client[F]],
+      client: Client[F],
       config: SmartcloudConfig
   ): InstancePriceService[F] =
     new SmartcloudInstancePriceService(
@@ -29,7 +29,7 @@ object SmartcloudPriceService {
     )
 
   private final class SmartcloudInstancePriceService[F[_]: Async: Logger](
-      client: Resource[F, Client[F]],
+      client: Client[F],
       config: SmartcloudConfig
   ) extends InstancePriceService[F]
       with Http4sClientDsl[F] {
@@ -57,13 +57,11 @@ object SmartcloudPriceService {
         )
       )
 
-    private def sendRequest(client: Resource[F, Client[F]], request: Request[F]): F[InstancePriceResponse] =
+    private def sendRequest(client: Client[F], request: Request[F]): F[InstancePriceResponse] =
       Logger[F].debug(s"Sending request to Smartcloud: $request") *>
-        client.use { client =>
-          client
-            .run(request)
-            .use(handleResponse)
-        }
+        client
+          .run(request)
+          .use(handleResponse)
 
     private def handleResponse(response: Response[F]): F[InstancePriceResponse] =
       response.status match {
