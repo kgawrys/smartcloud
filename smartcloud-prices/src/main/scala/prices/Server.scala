@@ -26,11 +26,13 @@ object Server {
       .withIdleTimeInPool(config.httpClient.idleTimeInPool)
       .build
 
-    def instanceKindService(httpClient: Client[IO])  = SmartcloudInstanceKindService.make[IO](config.smartcloud)
-    def instancePriceService(httpClient: Client[IO]) = SmartcloudPriceService.make[IO](httpClient, config.smartcloud)
+    val instanceKindService  = httpClient.map(client => SmartcloudInstanceKindService.make[IO](config.smartcloud))
+    val instancePriceService = httpClient.map(client => SmartcloudPriceService.make[IO](client, config.smartcloud))
 
-    def instanceKindRoutes(httpClient: Client[IO])  = InstanceKindRoutes[IO](instanceKindService(httpClient)).routes
-    def instancePriceRoutes(httpClient: Client[IO]) = InstancePriceRoutes[IO](instancePriceService(httpClient)).routes
+    val routes: Resource[IO, HttpApp[IO]] = for {
+      instanceKindService  <- instanceKindService
+      instancePriceService <- instancePriceService
+    } yield (InstanceKindRoutes[IO](instanceKindService).routes <+> InstancePriceRoutes[IO](instancePriceService).routes).orNotFound
 
     val loggers: HttpApp[IO] => HttpApp[IO] = {
       { http: HttpApp[IO] =>
@@ -40,16 +42,14 @@ object Server {
       }
     }
 
-    def routes(httpClient: Client[IO]) = (instanceKindRoutes(httpClient) <+> instancePriceRoutes(httpClient)).orNotFound
-
     Stream
-      .resource(httpClient)
-      .evalMap { httpClient =>
+      .resource(routes)
+      .evalMap { routes =>
         EmberServerBuilder
           .default[IO]
           .withHost(config.app.host)
           .withPort(config.app.port)
-          .withHttpApp(loggers(routes(httpClient)))
+          .withHttpApp(loggers(routes))
           .build
           .useForever
       }
