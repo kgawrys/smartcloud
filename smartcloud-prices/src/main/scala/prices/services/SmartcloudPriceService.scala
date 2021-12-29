@@ -48,7 +48,11 @@ object SmartcloudPriceService {
 
       result.handleErrorWith {
         case err: SmartcloudException =>
-          Logger[F].error(s"Unexpected failure: $err Message: ${err.message}") *> MonadError[F, Throwable].raiseError(err)
+          Logger[F].error(s"Failure occurred during instance price fetching: $err Message: ${err.message}") *>
+            MonadError[F, Throwable].raiseError(err)
+        case err =>
+          Logger[F].error(s"Unexpected failure occurred during instance price fetching: $err Message: ${Option(err.getMessage).getOrElse("")}") *>
+            MonadError[F, Throwable].raiseError(err)
       }
     }
 
